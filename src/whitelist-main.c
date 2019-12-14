@@ -388,11 +388,13 @@ void store_path(FILE* out, const char* path) {
     if (stat(path, &st) == -1 || (st.st_mode & S_IFMT) == S_IFDIR) {
         return;
     }
-    fputs(path, out);
-    fputc('\n', out);
     char* rpath = realpath(path, 0);
     if (rpath != 0 && strcmp(path, rpath) != 0) {
         fputs(rpath, out);
+        fputc('\n', out);
+    }
+    if (path[0] == '/') {
+        fputs(path, out);
         fputc('\n', out);
     }
     free(rpath);
@@ -601,6 +603,10 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
         return 1;
     }
     FILE* out = fopen("whitelist", "w");
+    if (out == 0) {
+        perror("fopen");
+        return 1;
+    }
     int ret = 1;
     while (1) {
         pid_t pid = waitpid(-1, &status, __WALL);
