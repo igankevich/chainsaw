@@ -2,6 +2,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
+#include <linux/magic.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,12 +21,7 @@ int main(int argc, char* argv[]) {
     }
     root = new_root;
     struct stat status;
-    if (-1 == stat(root, &status)) {
-        fprintf(stderr, "Unable to stat %s\n", root);
-        ret = 1;
-        goto end;
-    }
-    dev_t root_dev = status.st_dev;
+    struct statfs fs_status;
     FILE* out = fopen("blacklist", "w");
     if (out == NULL) {
         fprintf(stderr, "Unable to open blacklist\n");
@@ -38,6 +35,10 @@ int main(int argc, char* argv[]) {
     do {
         char* current_dir = dirs[ndirs-1];
         --ndirs;
+        // skip home directory
+        if (strncmp(current_dir, "/home", 5) == 0) {
+            goto free;
+        }
         DIR* d = opendir(current_dir);
         if (d == NULL) {
             fprintf(stderr, "Unable to open directory %s\n", current_dir);
@@ -50,6 +51,23 @@ int main(int argc, char* argv[]) {
                     current_dir);
             ret = 1;
             goto close;
+        }
+        if (-1 == fstatfs(dfd, &fs_status)) {
+            fprintf(stderr, "Unable to get file system of %s\n", current_dir);
+            ret = 1;
+            break;
+        }
+        // skip virtual file systems
+        switch (fs_status.f_type) {
+            case TMPFS_MAGIC:
+            case RAMFS_MAGIC:
+            case PROC_SUPER_MAGIC:
+            case SYSFS_MAGIC:
+            case DEVPTS_SUPER_MAGIC:
+            case DEBUGFS_MAGIC:
+            case CGROUP_SUPER_MAGIC:
+            case CGROUP2_SUPER_MAGIC:
+                goto close;
         }
         while ((entry = readdir(d)) != NULL) {
             const char* name = entry->d_name;
@@ -64,8 +82,6 @@ int main(int argc, char* argv[]) {
                 ret = 1;
                 break;
             }
-            // skip files from different devices
-            if (status.st_dev != root_dev) { continue; }
             // add the current entry to the stack
             if ((status.st_mode & S_IFMT) == S_IFDIR) {
                 size_t n1 = strlen(current_dir);
@@ -77,8 +93,11 @@ int main(int argc, char* argv[]) {
                     break;
                 }
                 memcpy(full_name, current_dir, n1);
-                full_name[n1] = '/';
-                strcpy(full_name + n1 + 1, name);
+                if (full_name[n1-1] != '/') {
+                    full_name[n1] = '/';
+                    ++n1;
+                }
+                strcpy(full_name + n1, name);
                 dirs[ndirs++] = full_name;
             } else {
                fputs(current_dir, out);
@@ -89,6 +108,7 @@ int main(int argc, char* argv[]) {
         }
 close:
         closedir(d);
+free:
         free(current_dir);
     } while (ndirs != 0);
     fclose(out);
