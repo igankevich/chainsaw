@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "syscalls.h"
 
 enum ptrace_events {
@@ -28,7 +29,7 @@ enum ptrace_events {
 };
 
 int child_main(int argc, char* argv[]) {
-    fprintf(stderr, "child pid %d\n", getpid());
+    //fprintf(stderr, "child pid %d\n", getpid());
     if (-1 == ptrace(PTRACE_TRACEME,0,0,0)) {
         perror("ptrace");
         return 1;
@@ -389,7 +390,25 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
     return ret;
 }
 
+void print_usage(const char* name) {
+    printf("usage: %s [-h] [--help] [--version] args...\n", name);
+    printf("example: %s find . -type f\n", name);
+}
+
+void print_version() {
+    printf("%s\n", CHAINSAW_VERSION);
+}
+
 int main(int argc, char* argv[]) {
+    if (argc <= 1) { print_usage(argv[0]); exit(1); }
+    if (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+        print_usage(argv[0]);
+        exit(0);
+    }
+    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+        print_version();
+        exit(0);
+    }
     init_names();
     pid_t pid = fork();
     switch (pid) {

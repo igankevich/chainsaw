@@ -10,7 +10,26 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#include "config.h"
+
+void print_usage(const char* name) {
+    printf("usage: %s [-h] [--help] [--version] directory\n", name);
+    printf("example: %s /\n", name);
+}
+
+void print_version() {
+    printf("%s\n", CHAINSAW_VERSION);
+}
+
 int main(int argc, char* argv[]) {
+    if (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+        print_usage(argv[0]);
+        exit(0);
+    }
+    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+        print_version();
+        exit(0);
+    }
     int ret = 0;
     char* root = (argc == 2) ? argv[1] : ".";
     char* new_root = realpath(root, 0);
