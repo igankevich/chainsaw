@@ -1,3 +1,5 @@
+# Usage
+
 **Do not use `chainsaw-cut` outside the application container.**
 
 These programmes allow you to optimise the size of the root file system that is
@@ -41,3 +43,11 @@ You have several options to produce whitelist.
    find /var/lib/my-app -type f >> whitelist
    echo /etc/passwd >> whitelist
    ```
+
+# Installation
+
+```bash
+meson build
+ninja -C build
+sudo ninja -C build install
+```
