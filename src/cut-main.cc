@@ -17,28 +17,28 @@ void print_version() {
 
 int main(int argc, char* argv[]) {
     bool confirmed = false;
-    const char* blacklist_path = "blacklist";
+    const char* diff_path = "diff";
     if (argc <= 1) { print_usage(argv[0]); std::exit(1); }
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) { print_version(); exit(0); }
     if (argc == 2) {
        if (std::strcmp(argv[1], "--confirm") == 0) { confirmed = true; }
-       else { blacklist_path = argv[1]; }
+       else { diff_path = argv[1]; }
     }
     if (argc == 3) {
        if (std::strcmp(argv[1], "--confirm") == 0) {
            confirmed = true;
-           blacklist_path = argv[2];
+           diff_path = argv[2];
        } else
        if (std::strcmp(argv[2], "--confirm") == 0) {
            confirmed = true;
-           blacklist_path = argv[1];
+           diff_path = argv[1];
        } else {
            print_usage(argv[0]);
            std::exit(1);
        }
     }
     std::ifstream in;
-    in.open(blacklist_path);
+    in.open(diff_path);
     in.exceptions(std::ios::badbit | std::ios::failbit);
     std::vector<std::string> files;
     std::string line;
