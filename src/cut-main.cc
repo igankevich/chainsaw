@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
         for (const auto& f : files) {
             int ret = std::remove(f.data());
             if (ret == -1) {
-                throw std::system_error(errno, std::system_category());
+                std::cerr << "failed to remove " << f.data() << ": " << std::strerror(errno) << std::endl;
             }
         }
     }

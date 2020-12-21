@@ -19,8 +19,8 @@ int main(int argc, char* argv[]) {
     const char* whitelist_path = "whitelist";
     const char* blacklist_path = "blacklist";
     if (argc == 2 && std::strcmp(argv[1], "--version") == 0) { print_version(); exit(0); }
-    if (argc <= 2) { print_usage(argv[0]); std::exit(1); }
-    if (argc == 3) { whitelist_path = argv[1], blacklist_path = argv[2]; }
+    if (argc == 2) { print_usage(argv[0]); std::exit(1); }
+    if (argc == 3) { blacklist_path = argv[1], whitelist_path = argv[2]; }
     std::string line;
     std::unordered_set<std::string> whitelist, blacklist;
     std::ifstream in;
