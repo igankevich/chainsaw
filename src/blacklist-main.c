@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <fcntl.h>
 
 #include "config.h"
 
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
                 (name[0] == '.' && name[1] == '.' && name[2] == 0)) {
                 continue;
             }
-            if (-1 == fstatat(dfd, name, &status, 0)) {
+            if (-1 == fstatat(dfd, name, &status, AT_SYMLINK_NOFOLLOW)) {
                 fprintf(stderr, "Unable to stat %s/%s\n", current_dir, name);
                 ret = 1;
                 break;
