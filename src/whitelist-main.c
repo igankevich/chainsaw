@@ -290,7 +290,19 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
         perror("fopen");
         return 1;
     }
-    int ret = 1;
+    // whitelist child binary
+    {
+        char buf[4096];
+        snprintf(buf, sizeof(buf), "/proc/%d/exe", child_pid);
+        char path[4096];
+        int ret = readlink(buf, path, sizeof(path));
+        if (ret == -1) {
+            perror("waitpid");
+            return 1;
+        }
+        store_path(out, path);
+    }
+    int ret = 0;
     while (1) {
         pid_t pid = waitpid(-1, &status, __WALL);
         if (-1 == pid) {

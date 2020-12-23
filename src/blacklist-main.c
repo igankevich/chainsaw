@@ -49,7 +49,8 @@ int main(int argc, char* argv[]) {
         goto end;
     }
     struct dirent* entry;
-    char* dirs[4096 / sizeof(const char*)] = {0};
+    size_t dirs_size = 4096 / sizeof(char*);
+    char** dirs = malloc(dirs_size*sizeof(char*));
     dirs[0] = root;
     int ndirs = 1;
     do {
@@ -103,9 +104,9 @@ int main(int argc, char* argv[]) {
                 break;
             }
             // add the current entry to the stack
+            size_t n1 = strlen(current_dir);
             if ((status.st_mode & S_IFMT) == S_IFDIR) {
-                size_t n1 = strlen(current_dir);
-                size_t n2 = strlen(name);
+                const size_t n2 = strlen(name);
                 char* full_name = malloc(n1+n2+2);
                 if (full_name == NULL) {
                     fprintf(stderr, "Memory allocation error\n");
@@ -113,15 +114,27 @@ int main(int argc, char* argv[]) {
                     break;
                 }
                 memcpy(full_name, current_dir, n1);
+                // remove slash at the end of the path
                 if (full_name[n1-1] != '/') {
                     full_name[n1] = '/';
                     ++n1;
                 }
                 strcpy(full_name + n1, name);
-                dirs[ndirs++] = full_name;
+                if (ndirs == dirs_size) {
+                    dirs_size *= 2;
+                    dirs = realloc(dirs, dirs_size*sizeof(char*));
+                    if (dirs == NULL) {
+                        fprintf(stderr, "Memory allocation error\n");
+                        ret = 1;
+                        break;
+                    }
+                }
+                dirs[ndirs] = full_name;
+                ++ndirs;
             } else {
                fputs(current_dir, out);
-               fputc('/', out);
+                // remove slash at the end of the path
+               if (current_dir[n1-1] != '/') { fputc('/', out); }
                fputs(name, out);
                fputc('\n', out);
             }
@@ -130,8 +143,9 @@ close:
         closedir(d);
 free:
         free(current_dir);
-    } while (ndirs != 0);
+    } while (ndirs >= 1);
     fclose(out);
+    free(dirs);
 end:
     return ret;
 }
