@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include <link.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -411,6 +412,24 @@ void print_version() {
     printf("%s\n", CHAINSAW_VERSION);
 }
 
+char* parent_ld_linux_path = NULL;
+char* child_ld_linux_path = NULL;
+
+static int
+callback(struct dl_phdr_info *info, size_t size, void *data) {
+    if (strstr(info->dlpi_name, "ld-linux")) {
+        fprintf(stderr, "Parent ld-linux path: %s\n", info->dlpi_name);
+        size_t n = strlen(info->dlpi_name);
+        parent_ld_linux_path = malloc(n+1);
+        if (parent_ld_linux_path == NULL) {
+            perror("malloc");
+            exit(1);
+        }
+        strcpy(parent_ld_linux_path, info->dlpi_name);
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     if (argc <= 1) { print_usage(argv[0]); exit(1); }
     if (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
@@ -422,6 +441,7 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
     init_names();
+    dl_iterate_phdr(callback, NULL);
     pid_t pid = fork();
     switch (pid) {
         case -1: perror("fork"); return 1;
