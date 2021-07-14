@@ -56,8 +56,16 @@ int main(int argc, char* argv[]) {
     do {
         char* current_dir = dirs[ndirs-1];
         --ndirs;
-        // skip home directory
-        if (strncmp(current_dir, "/home", 5) == 0) {
+        /* We skip home directory for safety reasons: who knows
+           how virtualization technologies will mount home directories
+           in the future... */
+        if (strncmp(current_dir, "/home", 5) == 0 ||
+            /* We skip /tmp directory because Singularity stores
+               old root there. */
+            strncmp(current_dir, "/tmp", 4) == 0 ||
+            /* We skip /dev because we can't distinguish between
+               tmpfs and devtmpfs using stat.f_type. */
+            strncmp(current_dir, "/dev", 4) == 0) {
             goto free;
         }
         DIR* d = opendir(current_dir);
@@ -80,7 +88,6 @@ int main(int argc, char* argv[]) {
         }
         // skip virtual file systems
         switch (fs_status.f_type) {
-            case TMPFS_MAGIC:
             case RAMFS_MAGIC:
             case PROC_SUPER_MAGIC:
             case SYSFS_MAGIC:
