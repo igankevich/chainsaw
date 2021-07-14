@@ -29,8 +29,25 @@ enum ptrace_events {
     event_exit = SIGTRAP | (PTRACE_EVENT_EXIT<<8),
 };
 
+void store_path(FILE* out, const char* path);
+
+static int
+callback(struct dl_phdr_info* info, size_t size, void* data) {
+    if (strstr(info->dlpi_name, "ld-linux")) {
+        FILE* out = fopen("whitelist", "w");
+        if (out == 0) {
+            perror("fopen");
+            return 1;
+        }
+        store_path(out, info->dlpi_name);
+        fclose(out);
+        system("cat whitelist");
+    }
+    return 0;
+}
+
 int child_main(int argc, char* argv[]) {
-    //fprintf(stderr, "child pid %d\n", getpid());
+    dl_iterate_phdr(callback, NULL);
     if (-1 == ptrace(PTRACE_TRACEME,0,0,0)) {
         perror("ptrace");
         return 1;
@@ -286,7 +303,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
     if (-1 == on_child_start(child_pid)) {
         return 1;
     }
-    FILE* out = fopen("whitelist", "w");
+    FILE* out = fopen("whitelist", "a");
     if (out == 0) {
         perror("fopen");
         return 1;
@@ -412,24 +429,6 @@ void print_version() {
     printf("%s\n", CHAINSAW_VERSION);
 }
 
-char* parent_ld_linux_path = NULL;
-char* child_ld_linux_path = NULL;
-
-static int
-callback(struct dl_phdr_info *info, size_t size, void *data) {
-    if (strstr(info->dlpi_name, "ld-linux")) {
-        fprintf(stderr, "Parent ld-linux path: %s\n", info->dlpi_name);
-        size_t n = strlen(info->dlpi_name);
-        parent_ld_linux_path = malloc(n+1);
-        if (parent_ld_linux_path == NULL) {
-            perror("malloc");
-            exit(1);
-        }
-        strcpy(parent_ld_linux_path, info->dlpi_name);
-    }
-    return 0;
-}
-
 int main(int argc, char* argv[]) {
     if (argc <= 1) { print_usage(argv[0]); exit(1); }
     if (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
@@ -441,7 +440,6 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
     init_names();
-    dl_iterate_phdr(callback, NULL);
     pid_t pid = fork();
     switch (pid) {
         case -1: perror("fork"); return 1;
