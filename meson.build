@@ -1,10 +1,10 @@
 project(
     'chainsaw',
     ['c', 'cpp'],
-    version: '0.2.5',
+    version: '0.3.0',
     meson_version: '>=0.46',
     default_options: ['c_std=c11', 'cpp_std=c++11'],
-    license: 'gpl3+'
+    license: 'unlicense'
 )
 
 cc = meson.get_compiler('c')

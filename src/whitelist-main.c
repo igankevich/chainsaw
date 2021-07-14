@@ -1,3 +1,8 @@
+/*
+Copyright © 2019–2021 Ivan Gankevich
+SPDX-License-Identifier: Unlicense
+*/
+
 #define _GNU_SOURCE
 
 #include <sys/ptrace.h>

@@ -1,0 +1,36 @@
+# Copyright © 2021 Ivan Gankevich
+# SPDX-License-Identifier: Unlicense
+
+Bootstrap: docker
+From: nginx:latest
+
+%post
+apt-get update
+apt-get install -y git ninja-build meson g++
+
+%setup
+rsync -a --exclude build ./ ${SINGULARITY_ROOTFS}/chainsaw/
+
+#%post
+#git clone --branch master https://github.com/igankevich/chainsaw /chainsaw
+
+%post
+cd /chainsaw
+meson -Dbuildtype=release build
+ninja -C build
+ninja -C build install
+cd /
+rm -rf /chainsaw
+
+mount
+chainsaw-blacklist /
+(chainsaw-whitelist timeout 5s /usr/sbin/nginx -g 'daemon off;' || true)
+sed -i -e 's|pid.*|pid /tmp/nginx.pdf;|g' /etc/nginx/nginx.conf
+find /usr/share/nginx/html -type f >> whitelist
+echo /bin/sh >> whitelist
+realpath /bin/sh >> whitelist
+chainsaw-diff
+chainsaw-cut --confirm diff
+
+%runscript
+/usr/sbin/nginx -g 'daemon off;' "$@"

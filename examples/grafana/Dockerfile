@@ -1,20 +1,23 @@
+# Copyright © 2021 Irina Nikolaeva, Ivan Gankevich
+# SPDX-License-Identifier: Unlicense
+
 FROM grafana/grafana as build
 USER root
+
 RUN cd / && \
     apk update && \
     apk add --no-cache git py3-pip && \
     apk add python3-dev gcc g++ libc-dev cmake make linux-headers && \
     pip3 install ninja meson && \
-    git clone --branch 0.2.3 https://github.com/igankevich/chainsaw && \
+    git clone --branch master https://github.com/igankevich/chainsaw && \
 	cd chainsaw && \
 	meson -Dbuildtype=release build && \
 	ninja -C build && \
 	ninja -C build install && \
-	yes | pip3 uninstall ninja meson && \
-	yes | apk del py3-pip git python3-dev && \
 	cd .. && \
 	rm -rf chainsaw && \
     cp run.sh /usr/share/grafana
+
 RUN cd / && \
     chainsaw-blacklist / && \
     (chainsaw-whitelist timeout 5s /run.sh || true) && \
@@ -27,8 +30,6 @@ RUN cd / && \
     echo $GF_PATHS_PROVISIONING >> whitelist && \
     echo /usr/bin/timeout >> whitelist && \
     echo /usr/share/grafana/public >> whitelist && \
-    echo /lib/ld-musl-x86_64.so.1 >> whitelist && \
-    echo /lib64/ld-linux-x86-64.so.2 >> whitelist && \
     echo /etc/hostname >> whitelist && \
     chainsaw-diff && \
     chainsaw-cut --confirm diff
