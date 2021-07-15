@@ -76,7 +76,6 @@ int main(int argc, char* argv[]) {
         DIR* d = opendir(current_dir);
         if (d == NULL) {
             fprintf(stderr, "Unable to open directory %s\n", current_dir);
-            ret = 1;
             goto close;
         }
         int dfd = dirfd(d);
