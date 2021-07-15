@@ -39,7 +39,7 @@ void store_path(FILE* out, const char* path);
 static int
 callback(struct dl_phdr_info* info, size_t size, void* data) {
     if (strstr(info->dlpi_name, "ld-linux")) {
-        FILE* out = fopen("whitelist", "w");
+        FILE* out = fopen("whitelist", "a");
         if (out == 0) {
             perror("fopen");
             return 1;
