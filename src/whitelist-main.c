@@ -34,30 +34,59 @@ enum ptrace_events {
     event_exit = SIGTRAP | (PTRACE_EVENT_EXIT<<8),
 };
 
-void store_path(FILE* out, const char* path);
+void store_path(const char* path);
+
+FILE* out = 0;
 
 static int
 callback(struct dl_phdr_info* info, size_t size, void* data) {
     if (strstr(info->dlpi_name, "ld-linux")) {
-        FILE* out = fopen("whitelist", "a");
-        if (out == 0) {
-            perror("fopen");
-            return 1;
-        }
-        store_path(out, info->dlpi_name);
-        fclose(out);
-        system("cat whitelist");
+        store_path(info->dlpi_name);
     }
     return 0;
 }
 
+void store_shebang(const char* filename) {
+    if (!filename) { return; }
+    const size_t size = 4096;
+    char* data = malloc(size);
+    if (data == 0) { perror("malloc"); return; }
+    FILE* in = fopen(filename, "r");
+    size_t nread = fread(data, 1, size, in);
+    if (nread <= 0) { perror("fread"); free(data); return; }
+    if (nread > 2 && data[0] == '#' && data[1] == '!') {
+        char* first = data;
+        char* last = data + nread;
+        first += 2;
+        while (first != last && *first <= ' ') { ++first; }
+        char* path = first;
+        while (first != last && *first > ' ') { ++first; }
+        if (*first <= ' ') {
+            *first = 0;
+        }
+        store_path(path);
+    }
+    free(data);
+}
+
 int child_main(int argc, char* argv[]) {
-    dl_iterate_phdr(callback, NULL);
+    out = fopen("whitelist", "a");
+    if (out == 0) {
+        perror("fopen");
+        return 1;
+    }
+    dl_iterate_phdr(callback, 0);
     if (-1 == ptrace(PTRACE_TRACEME,0,0,0)) {
         perror("ptrace");
         return 1;
     }
     char** child_argv = argv+1;
+    store_path(child_argv[0]);
+    store_shebang(child_argv[0]);
+    if (fclose(out) == -1) {
+        perror("fclose");
+        return 1;
+    }
     if (-1 == execvp(child_argv[0], child_argv)) {
         perror("execvp");
         return 1;
@@ -84,7 +113,7 @@ char* read_string(pid_t pid, unsigned long address) {
     return data;
 }
 
-void store_path(FILE* out, const char* path) {
+void store_path(const char* path) {
     if (path == 0) { return; }
     struct stat st;
     if (stat(path, &st) == -1 || (st.st_mode & S_IFMT) == S_IFDIR) {
@@ -102,7 +131,7 @@ void store_path(FILE* out, const char* path) {
     free(rpath);
 }
 
-void on_syscall(FILE* out, pid_t pid, struct user_regs_struct* regs) {
+void on_syscall(pid_t pid, struct user_regs_struct* regs) {
     #ifdef __x86_64__
     long n = regs->orig_rax;
     #else
@@ -148,10 +177,14 @@ void on_syscall(FILE* out, pid_t pid, struct user_regs_struct* regs) {
         case SYS_new_fstatat: f=read_string(pid, regs->rsi); break;
         #endif
         #ifdef SYS_execve
-        case SYS_execve: f=read_string(pid, regs->rdi); break;
+        case SYS_execve: f=read_string(pid, regs->rdi);
+                         store_shebang(f);
+                         break;
         #endif
         #ifdef SYS_execveat
-        case SYS_execveat: f=read_string(pid, regs->rsi); break;
+        case SYS_execveat: f=read_string(pid, regs->rsi);
+                           store_shebang(f);
+                           break;
         #endif
         #ifdef SYS_truncate
         case SYS_truncate: f=read_string(pid, regs->rdi); break;
@@ -272,14 +305,11 @@ void on_syscall(FILE* out, pid_t pid, struct user_regs_struct* regs) {
         case SYS_name_to_handle_at: f=read_string(pid, regs->rsi); break;
         #endif
     }
-    //if (n == SYS_fork || n == SYS_clone || n == SYS_vfork || n == SYS_execve) {
-    //    fprintf(stderr, "%s %s %s\n", syscall_names[n], f, f2);
-    //}
-    //if (n == SYS_openat) {
+    //if (f) {
     //    fprintf(stderr, "%d: %s %s %s\n", pid, syscall_names[n], f, f2);
     //}
-    store_path(out, f);
-    store_path(out, f2);
+    store_path(f);
+    store_path(f2);
     free(f);
     free(f2);
 }
@@ -308,7 +338,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
     if (-1 == on_child_start(child_pid)) {
         return 1;
     }
-    FILE* out = fopen("whitelist", "a");
+    out = fopen("whitelist", "a");
     if (out == 0) {
         perror("fopen");
         return 1;
@@ -323,7 +353,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
             perror("waitpid");
             return 1;
         }
-        store_path(out, path);
+        store_path(path);
     }
     int ret = 0;
     while (1) {
@@ -343,7 +373,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                     ret = 1;
                     break;
                 }
-                on_syscall(out, pid, &regs);
+                on_syscall(pid, &regs);
                 if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
                     perror("ptrace");
                     ret = 1;
@@ -410,7 +440,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                     ret = 1;
                     break;
                 }
-                on_syscall(out, pid, &regs);
+                on_syscall(pid, &regs);
                 if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
                     perror("ptrace");
                     ret = 1;
