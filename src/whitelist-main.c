@@ -40,9 +40,9 @@ FILE* out = 0;
 
 static int
 callback(struct dl_phdr_info* info, size_t size, void* data) {
-    if (strstr(info->dlpi_name, "ld-linux")) {
-        store_path(info->dlpi_name);
-    }
+    //if (strstr(info->dlpi_name, "ld-linux")) {
+    store_path(info->dlpi_name);
+    //}
     return 0;
 }
 
