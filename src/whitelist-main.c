@@ -40,9 +40,9 @@ FILE* out = 0;
 
 static int
 callback(struct dl_phdr_info* info, size_t size, void* data) {
-    //if (strstr(info->dlpi_name, "ld-linux")) {
-    store_path(info->dlpi_name);
-    //}
+    if (strstr(info->dlpi_name, "ld-linux")) {
+        store_path(info->dlpi_name);
+    }
     return 0;
 }
 
@@ -76,15 +76,15 @@ int child_main(int argc, char* argv[]) {
         return 1;
     }
     dl_iterate_phdr(callback, 0);
-    if (-1 == ptrace(PTRACE_TRACEME,0,0,0)) {
-        perror("ptrace");
-        return 1;
-    }
     char** child_argv = argv+1;
     store_path(child_argv[0]);
     store_shebang(child_argv[0]);
     if (fclose(out) == -1) {
         perror("fclose");
+        return 1;
+    }
+    if (-1 == ptrace(PTRACE_TRACEME,0,0,0)) {
+        perror("ptrace");
         return 1;
     }
     if (-1 == execvp(child_argv[0], child_argv)) {
