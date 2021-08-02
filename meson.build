@@ -1,7 +1,7 @@
 project(
     'chainsaw',
     ['c', 'cpp'],
-    version: '0.4.2',
+    version: '0.4.3',
     meson_version: '>=0.46',
     default_options: ['c_std=c11', 'cpp_std=c++11'],
     license: 'unlicense'

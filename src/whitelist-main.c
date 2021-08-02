@@ -48,10 +48,11 @@ callback(struct dl_phdr_info* info, size_t size, void* data) {
 
 void store_shebang(const char* filename) {
     if (!filename) { return; }
+    FILE* in = fopen(filename, "r");
+    if (!in) { return; }
     const size_t size = 4096;
     char* data = malloc(size);
     if (data == 0) { perror("malloc"); return; }
-    FILE* in = fopen(filename, "r");
     size_t nread = fread(data, 1, size, in);
     if (nread <= 0) { perror("fread"); free(data); return; }
     if (nread > 2 && data[0] == '#' && data[1] == '!') {
