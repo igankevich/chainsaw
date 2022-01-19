@@ -351,7 +351,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
         char path[4096];
         int ret = readlink(buf, path, sizeof(path));
         if (ret == -1) {
-            perror("waitpid");
+            perror("readlink");
             return 1;
         }
         store_path(path);
@@ -370,12 +370,14 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
             if (WSTOPSIG(status) == (SIGTRAP|0x80)) {
                 struct user_regs_struct regs;
                 if (-1 == ptrace(PTRACE_GETREGS, pid, 0, &regs)) {
+                    if (errno == ESRCH) { continue; }
                     perror("ptrace");
                     ret = 1;
                     break;
                 }
                 on_syscall(pid, &regs);
                 if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
+                    if (errno == ESRCH) { continue; }
                     perror("ptrace");
                     ret = 1;
                     break;
@@ -385,6 +387,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                 if (event == event_fork || event == event_vfork || event == event_clone) {
                     pid_t new_pid = 0;
                     if (-1 == ptrace(PTRACE_GETEVENTMSG, pid, 0, &new_pid)) {
+                        if (errno == ESRCH) { continue; }
                         perror("ptrace");
                         ret = 1;
                         break;
@@ -396,6 +399,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                         break;
                     }
                     if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
+                        if (errno == ESRCH) { continue; }
                         perror("ptrace");
                         ret = 1;
                         break;
@@ -403,6 +407,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                 } else if (event == event_exec) {
                     fprintf(stderr, "ignore exec\n");
                     if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
+                        if (errno == ESRCH) { continue; }
                         perror("ptrace");
                         ret = 1;
                         break;
@@ -421,6 +426,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
                         default: fprintf(stderr, "unknown %d\n", ((status>>8)&0xffff));
                     }
                     if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, 0)) {
+                        if (errno == ESRCH) { continue; }
                         perror("ptrace");
                         ret = 1;
                         break;
@@ -430,6 +436,7 @@ int parent_main(int argc, char* argv[], pid_t child_pid) {
             } else {
                 fprintf(stderr, "signal %d\n", WSTOPSIG(status));
                 if (-1 == ptrace(PTRACE_SYSCALL, pid, 0, WSTOPSIG(status))) {
+                    if (errno == ESRCH) { continue; }
                     perror("ptrace");
                     ret = 1;
                     break;
